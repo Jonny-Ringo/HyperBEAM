@@ -183,16 +183,29 @@ send_ping(Msg1, Opts) ->
                 
                 ?event({online_ping_signed, {node_address, NodeAddress}, {message_id, hb_message:id(SignedMessage, all)}}),
                 
-                % Now we can send the signed message to the network
-                % In a real implementation, this would typically be sent to Arweave or the network
-                % For now, we'll return the signed message as proof of concept
-                {ok, #{
-                    <<"message">> => <<"ping_signed_and_ready">>,
-                    <<"message_id">> => hb_message:id(SignedMessage, all),
-                    <<"node_address">> => NodeAddress,
-                    <<"commitment_device">> => CommitmentDevice,
-                    <<"signed_message">> => SignedMessage
-                }}
+                % Now submit the signed message to the Arweave network
+                case hb_client:upload(SignedMessage, Opts) of
+                    {ok, UploadResult} ->
+                        ?event({online_ping_uploaded, {upload_result, UploadResult}}),
+                        {ok, #{
+                            <<"message">> => <<"ping_sent_to_network">>,
+                            <<"message_id">> => hb_message:id(SignedMessage, all),
+                            <<"node_address">> => NodeAddress,
+                            <<"commitment_device">> => CommitmentDevice,
+                            <<"upload_result">> => UploadResult
+                        }};
+                    {error, UploadError} ->
+                        ?event({online_ping_upload_error, {error, UploadError}}),
+                        % Still return success for signing, but note upload failed
+                        {ok, #{
+                            <<"message">> => <<"ping_signed_but_upload_failed">>,
+                            <<"message_id">> => hb_message:id(SignedMessage, all),
+                            <<"node_address">> => NodeAddress,
+                            <<"commitment_device">> => CommitmentDevice,
+                            <<"upload_error">> => UploadError,
+                            <<"signed_message">> => SignedMessage
+                        }}
+                end
             catch
                 Class:Reason:Stacktrace ->
                     ?event({online_ping_error, {class, Class}, {reason, Reason}, {stacktrace, Stacktrace}}),
