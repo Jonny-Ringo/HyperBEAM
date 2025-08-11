@@ -156,20 +156,20 @@ send_ping(Msg1, Opts) ->
             % Get the node's address from the wallet
             NodeAddress = hb_util:id(ar_wallet:to_address(Wallet)),
             
-            % Create the unsigned ping message with the required tags
+            % Create the unsigned ping message compatible with ANS-104 format
+            % ANS-104 works better with simple data + tags structure
             UnsignedPingMessage = #{
-                <<"data">> => #{
-                    <<"action">> => <<"node_ping">>,
-                    <<"timestamp">> => hb:now(),
-                    <<"node_id">> => NodeAddress,
-                    <<"message">> => <<"Node online ping from HyperbEAM">>
-                },
-                <<"Online">> => <<"Yes">>,
-                <<"Device">> => <<"online-ping@1.0">>,
-                <<"Action">> => <<"Ping">>,
-                <<"Node-Status">> => <<"Active">>,
-                <<"App-Name">> => <<"HyperbEAM">>,
-                <<"Type">> => <<"ping">>
+                <<"data">> => <<"Node online ping from HyperbEAM">>,
+                <<"tags">> => [
+                    {<<"Online">>, <<"Yes">>},
+                    {<<"Device">>, <<"online-ping@1.0">>},
+                    {<<"Action">>, <<"Ping">>},
+                    {<<"Node-Status">>, <<"Active">>},
+                    {<<"App-Name">>, <<"HyperbEAM">>},
+                    {<<"Type">>, <<"ping">>},
+                    {<<"Node-ID">>, NodeAddress},
+                    {<<"Timestamp">>, integer_to_binary(hb:now())}
+                ]
             },
             
             try
@@ -187,6 +187,9 @@ send_ping(Msg1, Opts) ->
                 % Add codec-device field to ensure proper upload bundler selection
                 MessageForUpload = SignedMessage#{<<"codec-device">> => CommitmentDevice},
                 
+                % Log what we're about to upload for debugging
+                ?event({online_ping_uploading, {message_size, byte_size(term_to_binary(MessageForUpload))}, {commitment_device, CommitmentDevice}}),
+                
                 % Now submit the signed message to the Arweave network
                 case hb_client:upload(MessageForUpload, Opts) of
                     {ok, UploadResult} ->
@@ -199,7 +202,7 @@ send_ping(Msg1, Opts) ->
                             <<"upload_result">> => UploadResult
                         }};
                     {error, UploadError} ->
-                        ?event({online_ping_upload_error, {error, UploadError}}),
+                        ?event({online_ping_upload_error, {error, UploadError}, {bundler_response_details, UploadError}}),
                         % Still return success for signing, but note upload failed
                         {ok, #{
                             <<"message">> => <<"ping_signed_but_upload_failed">>,
