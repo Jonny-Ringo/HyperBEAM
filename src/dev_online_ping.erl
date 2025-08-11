@@ -62,24 +62,33 @@ init(Msg1, Msg2, Opts) ->
                 {ok, CronTaskId} ->
                     ?event({online_ping_init_success, {cron_task_id, CronTaskId}}),
                     {ok, #{
-                        <<"status">> => <<"initialized">>,
-                        <<"initial_ping">> => <<"sent">>,
-                        <<"recurring_ping">> => <<"scheduled">>,
-                        <<"interval">> => <<"12-hours">>,
-                        <<"cron_task_id">> => CronTaskId
+                        <<"status">> => 200,
+                        <<"body">> => #{
+                            <<"message">> => <<"initialized">>,
+                            <<"initial_ping">> => <<"sent">>,
+                            <<"recurring_ping">> => <<"scheduled">>,
+                            <<"interval">> => <<"12-hours">>,
+                            <<"cron_task_id">> => CronTaskId
+                        }
                     }};
                 {error, Reason} ->
                     ?event({online_ping_init_error, {scheduling_error, Reason}}),
                     {error, #{
-                        <<"error">> => <<"Failed to schedule recurring ping">>,
-                        <<"reason">> => Reason
+                        <<"status">> => 500,
+                        <<"body">> => #{
+                            <<"error">> => <<"Failed to schedule recurring ping">>,
+                            <<"reason">> => Reason
+                        }
                     }}
             end;
         {error, Reason} ->
             ?event({online_ping_init_error, {initial_ping_error, Reason}}),
             {error, #{
-                <<"error">> => <<"Failed to send initial ping">>,
-                <<"reason">> => Reason
+                <<"status">> => 500,
+                <<"body">> => #{
+                    <<"error">> => <<"Failed to send initial ping">>,
+                    <<"reason">> => Reason
+                }
             }}
     end.
 
@@ -90,15 +99,21 @@ ping_once(Msg1, _Msg2, Opts) ->
         {ok, Result} ->
             ?event({online_ping_once_success, {result, Result}}),
             {ok, #{
-                <<"status">> => <<"ping_sent">>,
-                <<"timestamp">> => hb:now(),
-                <<"result">> => Result
+                <<"status">> => 200,
+                <<"body">> => #{
+                    <<"message">> => <<"ping_sent">>,
+                    <<"timestamp">> => hb:now(),
+                    <<"result">> => Result
+                }
             }};
         {error, Reason} ->
             ?event({online_ping_once_error, {reason, Reason}}),
             {error, #{
-                <<"error">> => <<"Failed to send ping">>,
-                <<"reason">> => Reason
+                <<"status">> => 500,
+                <<"body">> => #{
+                    <<"error">> => <<"Failed to send ping">>,
+                    <<"reason">> => Reason
+                }
             }}
     end.
 
@@ -109,15 +124,21 @@ ping_every(Msg1, _Msg2, Opts) ->
         {ok, CronTaskId} ->
             ?event({online_ping_every_success, {cron_task_id, CronTaskId}}),
             {ok, #{
-                <<"status">> => <<"recurring_ping_scheduled">>,
-                <<"interval">> => <<"12-hours">>,
-                <<"cron_task_id">> => CronTaskId
+                <<"status">> => 200,
+                <<"body">> => #{
+                    <<"message">> => <<"recurring_ping_scheduled">>,
+                    <<"interval">> => <<"12-hours">>,
+                    <<"cron_task_id">> => CronTaskId
+                }
             }};
         {error, Reason} ->
             ?event({online_ping_every_error, {reason, Reason}}),
             {error, #{
-                <<"error">> => <<"Failed to schedule recurring ping">>,
-                <<"reason">> => Reason
+                <<"status">> => 500,
+                <<"body">> => #{
+                    <<"error">> => <<"Failed to schedule recurring ping">>,
+                    <<"reason">> => Reason
+                }
             }}
     end.
 
@@ -166,7 +187,7 @@ send_ping(Msg1, Opts) ->
                 % In a real implementation, this would typically be sent to Arweave or the network
                 % For now, we'll return the signed message as proof of concept
                 {ok, #{
-                    <<"status">> => <<"ping_signed_and_ready">>,
+                    <<"message">> => <<"ping_signed_and_ready">>,
                     <<"message_id">> => hb_message:id(SignedMessage, all),
                     <<"node_address">> => NodeAddress,
                     <<"commitment_device">> => CommitmentDevice,
@@ -176,9 +197,9 @@ send_ping(Msg1, Opts) ->
                 Class:Reason:Stacktrace ->
                     ?event({online_ping_error, {class, Class}, {reason, Reason}, {stacktrace, Stacktrace}}),
                     {error, #{
+                        <<"error">> => <<"Failed to sign ping message">>,
                         <<"class">> => Class,
-                        <<"reason">> => Reason,
-                        <<"details">> => <<"Failed to sign ping message">>
+                        <<"reason">> => Reason
                     }}
             end
     end.
@@ -213,6 +234,7 @@ schedule_recurring_ping(Msg1, Opts) ->
         Class:Reason:Stacktrace ->
             ?event({online_ping_cron_error, {class, Class}, {reason, Reason}, {stacktrace, Stacktrace}}),
             {error, #{
+                <<"error">> => <<"Failed to schedule recurring ping">>,
                 <<"class">> => Class,
                 <<"reason">> => Reason
             }}
