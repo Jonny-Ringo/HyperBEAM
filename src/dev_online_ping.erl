@@ -173,8 +173,9 @@ send_ping(Msg1, Opts) ->
             },
             
             try
-                % Sign the message with the node's wallet using the default commitment device
-                CommitmentDevice = hb_opts:get(commitment_device, <<"httpsig@1.0">>, Opts),
+                % Sign the message with the node's wallet using ans104 commitment device
+                % (ans104 is better supported for uploads than httpsig)
+                CommitmentDevice = hb_opts:get(commitment_device, <<"ans104@1.0">>, Opts),
                 {ok, SignedMessage} = dev_message:commit(
                     UnsignedPingMessage,
                     #{ <<"commitment-device">> => CommitmentDevice },
