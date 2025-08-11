@@ -90,7 +90,7 @@ default_message() ->
             #{<<"name">> => <<"volume@1.0">>, <<"module">> => dev_volume},
             #{<<"name">> => <<"wasi@1.0">>, <<"module">> => dev_wasi},
             #{<<"name">> => <<"wasm-64@1.0">>, <<"module">> => dev_wasm},
-            #{<<"name">> => <<"online-ping@1.0">>, <<"module">> => dev_online_ping},
+            #{<<"name">> => <<"online-ping@1.0">>, <<"module">> => dev_online_ping}
         ],
         %% Default execution cache control options
         cache_control => [<<"no-cache">>, <<"no-store">>],
