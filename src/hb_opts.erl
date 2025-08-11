@@ -116,7 +116,7 @@ default_message() ->
         %% Options for the relay device
         relay_http_client => httpc,
         %% The default codec to use for commitment signatures.
-        commitment_device => <<"httpsig@1.0">>,
+        commitment_device => <<"ans104@1.0">>,
         %% Dev options
         mode => debug,
         % Every modification to `Opts' called directly by the node operator
