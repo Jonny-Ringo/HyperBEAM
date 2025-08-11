@@ -161,8 +161,7 @@ send_ping(Msg1, Opts) ->
             UnsignedPingMessage = #{
                 <<"data">> => <<"Node online ping from HyperbEAM">>,
                 <<"Online">> => <<"Yes">>,
-                <<"Action">> => <<"Ping">>,
-                <<"App-Name">> => <<"HyperbEAM">>
+                <<"Action">> => <<"Ping">>
             },
             
             try
