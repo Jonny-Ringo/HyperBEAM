@@ -156,18 +156,13 @@ send_ping(Msg1, Opts) ->
             % Get the node's address from the wallet
             NodeAddress = hb_util:id(ar_wallet:to_address(Wallet)),
             
-            % Create the unsigned ping message compatible with ANS-104 format
-            % Keep tags at root level for HyperBEAM signing, simple data field for ANS-104
+            % Create a simple ping message using the exact pattern that works in HyperBEAM tests
+            % Start with minimal data, then add tags
             UnsignedPingMessage = #{
                 <<"data">> => <<"Node online ping from HyperbEAM">>,
                 <<"Online">> => <<"Yes">>,
-                <<"Device">> => <<"online-ping@1.0">>,
                 <<"Action">> => <<"Ping">>,
-                <<"Node-Status">> => <<"Active">>,
-                <<"App-Name">> => <<"HyperbEAM">>,
-                <<"Type">> => <<"ping">>,
-                <<"Node-ID">> => NodeAddress,
-                <<"Timestamp">> => integer_to_binary(hb:now())
+                <<"App-Name">> => <<"HyperbEAM">>
             },
             
             try
