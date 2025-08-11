@@ -147,53 +147,73 @@ ping_every(Msg1, _Msg2, Opts) ->
 %% @doc Send a ping message to the network with the "Online: Yes" tag.
 %% This properly signs the message with the node's wallet before sending.
 send_ping(Msg1, Opts) ->
+    % Get the node's wallet for signing
     Wallet = hb_opts:get(priv_wallet, no_viable_wallet, Opts),
     case Wallet of
         no_viable_wallet ->
             {error, <<"No wallet available for signing ping message">>};
         _ ->
-            NodeAddress = hb_util:human_id(ar_wallet:to_address(Wallet)),
+            % Get the node's address from the wallet
+            NodeAddress = hb_util:id(ar_wallet:to_address(Wallet)),
             
+            % Create a simple ping message using the exact pattern that works in HyperBEAM tests
+            % Start with minimal data, then add tags
             UnsignedPingMessage = #{
                 <<"data">> => <<"Node online ping from HyperbEAM">>
             },
             
             try
-                % Use hb_message:commit/3 like the working tests
-                SignedMessage = hb_message:commit(
+                % Sign the message with the node's wallet using ans104 commitment device
+                % (ans104 is better supported for uploads than httpsig)
+                CommitmentDevice = hb_opts:get(commitment_device, <<"ans104@1.0">>, Opts),
+                {ok, SignedMessage} = dev_message:commit(
                     UnsignedPingMessage,
-                    Wallet,
-                    <<"ans104@1.0">>
+                    #{ <<"commitment-device">> => CommitmentDevice },
+                    Opts
                 ),
                 
-                ?event({signed_message_debug, SignedMessage}),
+                ?event({online_ping_signed, {node_address, NodeAddress}, {message_id, hb_message:id(SignedMessage, all)}}),
                 
-                % Test with minimal options first
-                TestOpts = #{priv_wallet => Wallet},
+                % Add codec-device field to ensure proper upload bundler selection
+                MessageForUpload = SignedMessage#{<<"codec-device">> => CommitmentDevice},
                 
-                % Don't add codec-device - let upload determine it
-                case hb_client:upload(SignedMessage, TestOpts) of
+                % Log what we're about to upload for debugging
+                ?event({online_ping_uploading, {message_size, byte_size(term_to_binary(MessageForUpload))}, {commitment_device, CommitmentDevice}}),
+                
+                % Now submit the signed message to the Arweave network
+                case hb_client:upload(MessageForUpload, Opts) of
                     {ok, UploadResult} ->
-                        ?event({upload_success, UploadResult}),
+                        ?event({online_ping_uploaded, {upload_result, UploadResult}}),
                         {ok, #{
                             <<"message">> => <<"ping_sent_to_network">>,
-                            <<"message_id">> => hb_message:id(SignedMessage),
+                            <<"message_id">> => hb_message:id(SignedMessage, all),
                             <<"node_address">> => NodeAddress,
+                            <<"commitment_device">> => CommitmentDevice,
                             <<"upload_result">> => UploadResult
                         }};
                     {error, UploadError} ->
-                        ?event({upload_failed, UploadError}),
-                        {error, #{
-                            <<"message">> => <<"upload_failed">>,
-                            <<"error">> => UploadError
+                        ?event({online_ping_upload_error, {error, UploadError}, {bundler_response_details, UploadError}}),
+                        % Still return success for signing, but note upload failed
+                        {ok, #{
+                            <<"message">> => <<"ping_signed_but_upload_failed">>,
+                            <<"message_id">> => hb_message:id(SignedMessage, all),
+                            <<"node_address">> => NodeAddress,
+                            <<"commitment_device">> => CommitmentDevice,
+                            <<"upload_error">> => UploadError,
+                            <<"signed_message">> => SignedMessage
                         }}
                 end
             catch
                 Class:Reason:Stacktrace ->
-                    ?event({ping_error, {class, Class}, {reason, Reason}}),
-                    {error, #{<<"error">> => <<"signing_failed">>, <<"reason">> => Reason}}
+                    ?event({online_ping_error, {class, Class}, {reason, Reason}, {stacktrace, Stacktrace}}),
+                    {error, #{
+                        <<"error">> => <<"Failed to sign ping message">>,
+                        <<"class">> => Class,
+                        <<"reason">> => Reason
+                    }}
             end
     end.
+
 %% @doc Schedule a recurring ping using the cron device.
 schedule_recurring_ping(Msg1, Opts) ->
     % Create a cron message to schedule recurring pings every 12 hours
