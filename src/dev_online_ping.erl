@@ -171,7 +171,27 @@ send_ping(Msg1, Opts) ->
                     #{ <<"commitment-device">> => CommitmentDevice },
                     Opts
                 ),
+                ?event({debug_signed_message, SignedMessage}),
+
+                % Let's see what the conversion produces step by step
+                ?event({debug_about_to_convert, "Converting to ans104@1.0"}),
+                Converted = hb_message:convert(SignedMessage, <<"ans104@1.0">>, Opts),
+                ?event({debug_converted_tx, Converted}),
                 
+                % Check if ar_bundles can verify it before serialization
+                case ar_bundles:verify_item(Converted) of
+                    true -> 
+                        ?event({debug_verify_success, "TX verifies locally"});
+                    false -> 
+                        ?event({debug_verify_failed, "TX does NOT verify locally"})
+                end,
+                
+                % See the serialization
+                Serialized = ar_bundles:serialize(Converted),
+                ?event({debug_serialized, {size, byte_size(Serialized)}, {first_100_bytes, binary:part(Serialized, 0, min(100, byte_size(Serialized)))}}),
+                % END OF DEBUG LINES
+
+
                 ?event({online_ping_signed, {node_address, NodeAddress}, {message_id, hb_message:id(SignedMessage, all)}}),
                 
                 % Add codec-device field to ensure proper upload bundler selection
