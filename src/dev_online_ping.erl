@@ -159,9 +159,7 @@ send_ping(Msg1, Opts) ->
             % Create a simple ping message using the exact pattern that works in HyperBEAM tests
             % Start with minimal data, then add tags
             UnsignedPingMessage = #{
-                <<"data">> => <<"Node online ping from HyperbEAM">>,
-                <<"Online">> => <<"Yes">>,
-                <<"Action">> => <<"Ping">>
+                <<"data">> => <<"Node online ping from HyperbEAM">>
             },
             
             try
