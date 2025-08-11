@@ -163,6 +163,7 @@ send_ping(Msg1, Opts) ->
             },
             
             try
+                ?event({debug_start_of_try_block, "Starting ping process"}),
                 % Sign the message with the node's wallet using ans104 commitment device
                 % (ans104 is better supported for uploads than httpsig)
                 CommitmentDevice = hb_opts:get(commitment_device, <<"ans104@1.0">>, Opts),
