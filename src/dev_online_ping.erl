@@ -147,6 +147,7 @@ ping_every(Msg1, _Msg2, Opts) ->
 %% @doc Send a ping message to the network with the "Online: Yes" tag.
 %% This properly signs the message with the node's wallet before sending.
 send_ping(Msg1, Opts) ->
+    ?event({debug_send_ping_start, "Function called"}),
     % Get the node's wallet for signing
     Wallet = hb_opts:get(priv_wallet, no_viable_wallet, Opts),
     case Wallet of
