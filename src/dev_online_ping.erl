@@ -174,6 +174,9 @@ send_ping(Msg1, Opts) ->
                 
                 ?event({online_ping_signed, {node_address, NodeAddress}, {message_id, hb_message:id(SignedMessage, all)}}),
                 
+                % Add codec-device field to ensure proper upload bundler selection
+                MessageForUpload = SignedMessage#{<<"codec-device">> => CommitmentDevice},
+                
                 % Log what we're about to upload for debugging
                 ?event({online_ping_uploading, {message_size, byte_size(term_to_binary(MessageForUpload))}, {commitment_device, CommitmentDevice}}),
                 
