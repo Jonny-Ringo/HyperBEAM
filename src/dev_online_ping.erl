@@ -184,8 +184,11 @@ send_ping(Msg1, Opts) ->
                 
                 ?event({online_ping_signed, {node_address, NodeAddress}, {message_id, hb_message:id(SignedMessage, all)}}),
                 
+                % Add codec-device field to ensure proper upload bundler selection
+                MessageForUpload = SignedMessage#{<<"codec-device">> => CommitmentDevice},
+                
                 % Now submit the signed message to the Arweave network
-                case hb_client:upload(SignedMessage, Opts) of
+                case hb_client:upload(MessageForUpload, Opts) of
                     {ok, UploadResult} ->
                         ?event({online_ping_uploaded, {upload_result, UploadResult}}),
                         {ok, #{
