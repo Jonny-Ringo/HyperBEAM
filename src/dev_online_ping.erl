@@ -163,7 +163,8 @@ send_ping(Msg1, Opts) ->
                 <<"data">> => <<"Node online ping from HyperbEAM">>,
                 <<"Online">> => <<"Yes">>,
                 <<"Action">> => <<"Ping">>,
-                <<"Timestamp">> => integer_to_binary(hb:now())
+                <<"Timestamp">> => integer_to_binary(hb:now()),
+                <<"codec-device">> => <<"ans104@1.0">>
             },
             
             try
