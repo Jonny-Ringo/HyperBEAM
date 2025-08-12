@@ -239,25 +239,20 @@ send_ping(Msg1, Opts) ->
 %% @doc Schedule a recurring ping using the cron device.
 schedule_recurring_ping(_Msg1, Opts) ->
     try
-        % Use the working query parameter approach
-        Result = hb_http:get(
-            "http://localhost:10000/~cron@1.0/every", 
-            #{
-                <<"cron-path">> => <<"/~online-ping@1.0/ping_once">>,
-                <<"interval">> => <<"1-hours">>
-            }, 
+        % Use internal AO resolution instead of HTTP
+        Result = hb_ao:get(
+            <<"/~cron@1.0/every?interval=12-hours&cron-path=/~online-ping@1.0/ping_once">>, 
+            #{},  % Empty message context
             Opts
         ),
         
         ?event({online_ping_cron_scheduled, {result, Result}}),
         
         case Result of
-            {ok, TaskId} when is_binary(TaskId) ->
+            TaskId when is_binary(TaskId) ->
                 {ok, TaskId};
-            {ok, _} ->
-                {ok, <<"scheduled">>};
             _ ->
-                {error, <<"Unexpected cron response">>}
+                {ok, <<"scheduled">>}
         end
     catch
         Class:Reason:Stacktrace ->
