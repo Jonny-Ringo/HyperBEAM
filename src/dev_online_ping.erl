@@ -1,33 +1,28 @@
 -module(dev_online_ping).
--export([info/1, info/3, init/3, ping_once/3, ping_every/3]).
+-export([info/1, info/3, ping_once/3]).
 -include("include/hb.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
-%%% @doc A simple device that sends a signed ping to the network when a node comes online
-%%% and then every 12 hours. The ping includes an "Online: Yes" tag that can be
-%%% indexed for GraphQL queries. Each ping is cryptographically signed with the 
-%%% node's wallet to ensure authenticity.
+%%% @doc A simple device that sends a signed ping to the network.
+%%% The ping includes an "Online: Yes" tag that can be indexed for GraphQL queries.
+%%% Each ping is cryptographically signed with the node's wallet to ensure authenticity.
 %%% 
 %%% This device provides:
-%%% - Automatic ping on node startup via hooks
-%%% - Recurring ping every 12 hours using cron
+%%% - Manual ping via ping_once endpoint
 %%% - Cryptographically signed messages using the node's wallet
 %%% - "Online: Yes" tag for easy GraphQL indexing
 %%% - Proper commitment/signature using configurable commitment device
-
-%% @doc Schedule a recurring ping using the cron device for once evry 12 hours
-%% curl "http://localhost:10000/~cron@1.0/every?cron-path=/~online-ping@1.0/ping_once&interval=12-hours"
-
+%%%
+%%% To schedule recurring pings, use the cron device externally:
+%%% curl "http://localhost:10000/~cron@1.0/every?cron-path=/~online-ping@1.0/ping_once&interval=12-hours"
 
 %% @doc Device info export specification.
 info(_) ->
     #{
-        exports => [info, init, ping_once, ping_every],
+        exports => [info, ping_once],
         handlers => #{
             <<"info">> => fun info/3,
-            <<"init">> => fun init/3,
-            <<"ping_once">> => fun ping_once/3,
-            <<"ping_every">> => fun ping_every/3
+            <<"ping_once">> => fun ping_once/3
         }
     }.
 
@@ -39,23 +34,21 @@ info(_Msg1, _Msg2, _Opts) ->
         <<"purpose">> => <<"Sends network pings with 'Online: Yes' tag for indexing">>,
         <<"paths">> => #{
             <<"info">> => <<"Get device information">>,
-            <<"init">> => <<"Initialize the ping device">>,
-            <<"ping_once">> => <<"Send a single ping to the network">>,
-            <<"ping_every">> => <<"Setup recurring ping every 12 hours">>
+            <<"ping_once">> => <<"Send a single ping to the network">>
         },
         <<"usage">> => #{
-            <<"startup">> => <<"Automatically sends ping on node start">>,
-            <<"recurring">> => <<"Sends ping every 12 hours">>,
-            <<"tag">> => <<"Uses 'Online: Yes' tag for easy GQL indexing">>
+            <<"manual">> => <<"Call ping_once to send a single ping">>,
+            <<"recurring">> => <<"Use cron device to schedule recurring pings">>,
+            <<"tag">> => <<"Uses 'Online: Yes' tag for easy GQL indexing">>,
+            <<"cron_example">> => <<"curl 'http://localhost:10000/~cron@1.0/every?cron-path=/~online-ping@1.0/ping_once&interval=12-hours'">>
         }
     },
     {ok, #{<<"status">> => 200, <<"body">> => InfoBody}}.
 
-
 %% @doc Send a single ping to the network.
 ping_once(Msg1, _Msg2, Opts) ->
     ?event({online_ping_once_called, {msg1, Msg1}}),
-    case send_ping(Msg1, Opts) of
+    case send_ping(Opts) of
         {ok, Result} ->
             ?event({online_ping_once_success, {result, Result}}),
             {ok, #{
@@ -77,36 +70,11 @@ ping_once(Msg1, _Msg2, Opts) ->
             }}
     end.
 
-%% @doc Setup recurring ping every 12 hours.
-ping_every(Msg1, _Msg2, Opts) ->
-    ?event({online_ping_every_called, {msg1, Msg1}}),
-    case schedule_recurring_ping(Msg1, Opts) of
-        {ok, CronTaskId} ->
-            ?event({online_ping_every_success, {cron_task_id, CronTaskId}}),
-            {ok, #{
-                <<"status">> => 200,
-                <<"body">> => #{
-                    <<"message">> => <<"recurring_ping_scheduled">>,
-                    <<"interval">> => <<"12-hours">>,
-                    <<"cron_task_id">> => CronTaskId
-                }
-            }};
-        {error, Reason} ->
-            ?event({online_ping_every_error, {reason, Reason}}),
-            {error, #{
-                <<"status">> => 500,
-                <<"body">> => #{
-                    <<"error">> => <<"Failed to schedule recurring ping">>,
-                    <<"reason">> => Reason
-                }
-            }}
-    end.
-
 %%% Private functions
 
 %% @doc Send a ping message to the network with the "Online: Yes" tag.
 %% This properly signs the message with the node's wallet before sending.
-send_ping(Msg1, Opts) ->
+send_ping(Opts) ->
     ?event({debug_send_ping_start, "Function called"}),
     % Get the node's wallet for signing
     Wallet = hb_opts:get(priv_wallet, no_viable_wallet, Opts),
@@ -196,7 +164,6 @@ send_ping(Msg1, Opts) ->
             end
     end.
 
-
 %%% Tests
 
 %% @doc Test that the device info is returned correctly.
@@ -218,11 +185,11 @@ info_endpoint_test() ->
 ping_once_test() ->
     % Mock wallet for testing
     Wallet = ar_wallet:new(),
-    _Opts = #{priv_wallet => Wallet},
+    Opts = #{priv_wallet => Wallet},
     
     % This test would need proper mocking of dev_meta:handle in a real test environment
     % For now, we just verify the function structure
-    _Msg1 = #{<<"device">> => <<"online-ping@1.0">>},
+    Msg1 = #{<<"device">> => <<"online-ping@1.0">>},
     
     % In a real test, you'd mock dev_meta:handle to return success
     % Result = ping_once(Msg1, #{}, Opts),
