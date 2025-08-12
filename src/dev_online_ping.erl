@@ -193,20 +193,13 @@ send_ping(Msg1, Opts) ->
                 ?event({debug_serialized, {size, byte_size(Serialized)}, {first_100_bytes, binary:part(Serialized, 0, min(100, byte_size(Serialized)))}}),
                 % END OF DEBUG LINES
 
-
                 ?event({online_ping_signed, {node_address, NodeAddress}, {message_id, hb_message:id(SignedMessage, all)}}),
                 
-                % Add codec-device field to ensure proper upload bundler selection
-                % MessageForUpload = SignedMessage#{<<"codec-device">> => CommitmentDevice},
-
-                % Upload directly:
+                % Log what we're about to upload for debugging (upload directly without codec-device)
+                ?event({online_ping_uploading, {message_size, byte_size(term_to_binary(SignedMessage))}, {commitment_device, CommitmentDevice}}),
+                
+                % Now submit the signed message to the Arweave network (upload directly)
                 case hb_client:upload(SignedMessage, Opts) of
-                
-                % Log what we're about to upload for debugging
-                ?event({online_ping_uploading, {message_size, byte_size(term_to_binary(MessageForUpload))}, {commitment_device, CommitmentDevice}}),
-                
-                % Now submit the signed message to the Arweave network
-                case hb_client:upload(MessageForUpload, Opts) of
                     {ok, UploadResult} ->
                         ?event({online_ping_uploaded, {upload_result, UploadResult}}),
                         {ok, #{
@@ -240,7 +233,7 @@ send_ping(Msg1, Opts) ->
     end.
 
 %% @doc Schedule a recurring ping using the cron device.
-schedule_recurring_ping(Msg1, Opts) ->
+schedule_recurring_ping(_Msg1, Opts) ->
     % Create a cron message to schedule recurring pings every 12 hours
     CronMessage = #{
         <<"path">> => <<"/~cron@1.0/every">>,
@@ -296,11 +289,11 @@ info_endpoint_test() ->
 ping_once_test() ->
     % Mock wallet for testing
     Wallet = ar_wallet:new(),
-    Opts = #{priv_wallet => Wallet},
+    _Opts = #{priv_wallet => Wallet},
     
     % This test would need proper mocking of dev_meta:handle in a real test environment
     % For now, we just verify the function structure
-    Msg1 = #{<<"device">> => <<"online-ping@1.0">>},
+    _Msg1 = #{<<"device">> => <<"online-ping@1.0">>},
     
     % In a real test, you'd mock dev_meta:handle to return success
     % Result = ping_once(Msg1, #{}, Opts),
