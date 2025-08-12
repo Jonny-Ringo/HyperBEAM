@@ -238,24 +238,21 @@ send_ping(Msg1, Opts) ->
 
 %% @doc Schedule a recurring ping using the cron device.
 schedule_recurring_ping(_Msg1, Opts) ->
-    % Create a cron message to schedule recurring pings every 12 hours
-    CronMessage = #{
-        <<"path">> => <<"/~cron@1.0/every">>,
-        <<"method">> => <<"GET">>,
-        <<"cron-path">> => <<"/~online-ping@1.0/ping_once">>,
-        <<"interval">> => <<"12-hours">>
-    },
-    
     try
-        % Use dev_meta to handle the cron scheduling
-        Result = dev_meta:handle(Opts, CronMessage),
+        % Use the working query parameter approach
+        Result = hb_http:get(
+            "http://localhost:10000/~cron@1.0/every", 
+            #{
+                <<"cron-path">> => <<"/~online-ping@1.0/ping_once">>,
+                <<"interval">> => <<"12-hours">>
+            }, 
+            Opts
+        ),
+        
         ?event({online_ping_cron_scheduled, {result, Result}}),
         
-        % Extract the task ID from the result
         case Result of
             {ok, TaskId} when is_binary(TaskId) ->
-                {ok, TaskId};
-            {ok, #{<<"task_id">> := TaskId}} ->
                 {ok, TaskId};
             {ok, _} ->
                 {ok, <<"scheduled">>};
