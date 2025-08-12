@@ -15,6 +15,10 @@
 %%% - "Online: Yes" tag for easy GraphQL indexing
 %%% - Proper commitment/signature using configurable commitment device
 
+%% @doc Schedule a recurring ping using the cron device for once evry 12 hours
+%% curl "http://localhost:10000/~cron@1.0/every?cron-path=/~online-ping@1.0/ping_once&interval=12-hours"
+
+
 %% @doc Device info export specification.
 info(_) ->
     #{
@@ -47,50 +51,6 @@ info(_Msg1, _Msg2, _Opts) ->
     },
     {ok, #{<<"status">> => 200, <<"body">> => InfoBody}}.
 
-%% @doc Initialize the online ping device. This sets up the initial ping
-%% and schedules recurring pings.
-init(Msg1, Msg2, Opts) ->
-    ?event({online_ping_init, {msg1, Msg1}, {msg2, Msg2}}),
-    
-    % Send initial ping immediately
-    case send_ping(Msg1, Opts) of
-        {ok, _} ->
-            ?event({online_ping_init_success, initial_ping_sent}),
-            
-            % Schedule recurring ping every 12 hours
-            case schedule_recurring_ping(Msg1, Opts) of
-                {ok, CronTaskId} ->
-                    ?event({online_ping_init_success, {cron_task_id, CronTaskId}}),
-                    {ok, #{
-                        <<"status">> => 200,
-                        <<"body">> => #{
-                            <<"message">> => <<"initialized">>,
-                            <<"initial_ping">> => <<"sent">>,
-                            <<"recurring_ping">> => <<"scheduled">>,
-                            <<"interval">> => <<"12-hours">>,
-                            <<"cron_task_id">> => CronTaskId
-                        }
-                    }};
-                {error, Reason} ->
-                    ?event({online_ping_init_error, {scheduling_error, Reason}}),
-                    {error, #{
-                        <<"status">> => 500,
-                        <<"body">> => #{
-                            <<"error">> => <<"Failed to schedule recurring ping">>,
-                            <<"reason">> => Reason
-                        }
-                    }}
-            end;
-        {error, Reason} ->
-            ?event({online_ping_init_error, {initial_ping_error, Reason}}),
-            {error, #{
-                <<"status">> => 500,
-                <<"body">> => #{
-                    <<"error">> => <<"Failed to send initial ping">>,
-                    <<"reason">> => Reason
-                }
-            }}
-    end.
 
 %% @doc Send a single ping to the network.
 ping_once(Msg1, _Msg2, Opts) ->
@@ -236,33 +196,6 @@ send_ping(Msg1, Opts) ->
             end
     end.
 
-%% @doc Schedule a recurring ping using the cron device.
-schedule_recurring_ping(_Msg1, Opts) ->
-    try
-        % Use internal AO resolution instead of HTTP
-        Result = hb_ao:get(
-            <<"/~cron@1.0/every?interval=20-minutes&cron-path=/~online-ping@1.0/ping_once">>, 
-            #{},  % Empty message context
-            Opts
-        ),
-        
-        ?event({online_ping_cron_scheduled, {result, Result}}),
-        
-        case Result of
-            TaskId when is_binary(TaskId) ->
-                {ok, TaskId};
-            _ ->
-                {ok, <<"scheduled">>}
-        end
-    catch
-        Class:Reason:Stacktrace ->
-            ?event({online_ping_cron_error, {class, Class}, {reason, Reason}, {stacktrace, Stacktrace}}),
-            {error, #{
-                <<"error">> => <<"Failed to schedule recurring ping">>,
-                <<"class">> => Class,
-                <<"reason">> => Reason
-            }}
-    end.
 
 %%% Tests
 
