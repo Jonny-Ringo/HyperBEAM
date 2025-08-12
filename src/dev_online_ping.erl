@@ -241,7 +241,7 @@ schedule_recurring_ping(_Msg1, Opts) ->
     try
         % Use internal AO resolution instead of HTTP
         Result = hb_ao:get(
-            <<"/~cron@1.0/every?interval=12-hours&cron-path=/~online-ping@1.0/ping_once">>, 
+            <<"/~cron@1.0/every?interval=20-minutes&cron-path=/~online-ping@1.0/ping_once">>, 
             #{},  % Empty message context
             Opts
         ),
