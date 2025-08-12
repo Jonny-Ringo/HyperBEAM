@@ -244,7 +244,7 @@ schedule_recurring_ping(_Msg1, Opts) ->
             "http://localhost:10000/~cron@1.0/every", 
             #{
                 <<"cron-path">> => <<"/~online-ping@1.0/ping_once">>,
-                <<"interval">> => <<"12-hours">>
+                <<"interval">> => <<"1-hours">>
             }, 
             Opts
         ),
