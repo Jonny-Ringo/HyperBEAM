@@ -3,15 +3,9 @@
 -include("include/hb.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
-%%% @doc A simple device that sends a signed ping to the network.
-%%% The ping includes an "Online: Yes" tag that can be indexed for GraphQL queries.
+%%% @doc A simple device that sends a signed ping to the network once or on an interval.
+%%% The ping includes an "Online: Yes" tag, timestamps, and node URL tags for easy GraphQL indexing of info.
 %%% Each ping is cryptographically signed with the node's wallet to ensure authenticity.
-%%% 
-%%% This device provides:
-%%% - Manual ping via ping_once endpoint
-%%% - Cryptographically signed messages using the node's wallet
-%%% - "Online: Yes" tag for easy GraphQL indexing
-%%% - Proper commitment/signature using configurable commitment device
 %%%
 %%% To schedule recurring pings, use the cron device externally:
 %%% curl "http://localhost:10000/~cron@1.0/every?cron-path=/~online-ping@1.0/ping_once&interval=12-hours"
@@ -72,7 +66,7 @@ ping_once(Msg1, _Msg2, Opts) ->
 
 %%% Private functions
 
-%% @doc Send a ping message to the network with the "Online: Yes" tag.
+%% @doc Send a ping message to the network with the tags.
 %% This properly signs the message with the node's wallet before sending.
 send_ping(Opts) ->
     ?event({debug_send_ping_start, "Function called"}),
@@ -105,8 +99,7 @@ send_ping(Opts) ->
                     end
             end,
 
-            % Create a simple ping message using the exact pattern that works in HyperBEAM tests
-            % Start with minimal data, then add tags
+            % Create a ping message wiht node details from config file
             UnsignedPingMessage = #{
                 <<"data">> => <<"Node online ping from HyperBEAM">>,
                 <<"Online">> => <<"Yes">>,
@@ -119,7 +112,6 @@ send_ping(Opts) ->
             try
                 ?event({debug_start_of_try_block, "Starting ping process"}),
                 % Sign the message with the node's wallet using ans104 commitment device
-                % (ans104 is better supported for uploads than httpsig)
                 CommitmentDevice = hb_opts:get(commitment_device, <<"ans104@1.0">>, Opts),
                 {ok, SignedMessage} = dev_message:commit(
                     UnsignedPingMessage,
