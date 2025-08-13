@@ -89,18 +89,26 @@ send_ping(Opts) ->
             Host = hb_opts:get(host, <<"unknown">>, Opts),
             Port = hb_opts:get(port, 10000, Opts),
 
-            % Build the URL (handling the unknown case)
+            % Build the URL (handling the unknown case and protocol detection)
             NodeUrl = case Host of
                 <<"unknown">> ->
                     <<"unknown">>;  % Don't build a URL if host is unknown
                 _ ->
-                    iolist_to_binary(io_lib:format("http://~s:~p", [Host, Port]))
+                    % Check if host already includes a protocol
+                    case binary:match(Host, [<<"://">>]) of
+                        nomatch ->
+                            % No protocol specified, use http with port
+                            iolist_to_binary(io_lib:format("http://~s:~p", [Host, Port]));
+                        _ ->
+                            % Protocol already specified, use as-is (assume port is included if needed)
+                            Host
+                    end
             end,
 
             % Create a simple ping message using the exact pattern that works in HyperBEAM tests
             % Start with minimal data, then add tags
             UnsignedPingMessage = #{
-                <<"data">> => <<"Node online ping from HyperbEAM">>,
+                <<"data">> => <<"Node online ping from HyperBEAM">>,
                 <<"Online">> => <<"Yes">>,
                 <<"Action">> => <<"Ping">>,
                 <<"Node-URL">> => NodeUrl,  % Will be "unknown" or actual URL
