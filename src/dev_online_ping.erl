@@ -85,12 +85,25 @@ send_ping(Opts) ->
             % Get the node's address from the wallet
             NodeAddress = hb_util:id(ar_wallet:to_address(Wallet)),
             
+            % Get host and port information
+            Host = hb_opts:get(host, <<"unknown">>, Opts),
+            Port = hb_opts:get(port, 10000, Opts),
+
+            % Build the URL (handling the unknown case)
+            NodeUrl = case Host of
+                <<"unknown">> ->
+                    <<"unknown">>;  % Don't build a URL if host is unknown
+                _ ->
+                    iolist_to_binary(io_lib:format("http://~s:~p", [Host, Port]))
+            end,
+
             % Create a simple ping message using the exact pattern that works in HyperBEAM tests
             % Start with minimal data, then add tags
             UnsignedPingMessage = #{
                 <<"data">> => <<"Node online ping from HyperbEAM">>,
                 <<"Online">> => <<"Yes">>,
                 <<"Action">> => <<"Ping">>,
+                <<"Node-URL">> => NodeUrl,  % Will be "unknown" or actual URL
                 <<"Timestamp">> => integer_to_binary(hb:now()),
                 <<"codec-device">> => <<"ans104@1.0">>
             },
